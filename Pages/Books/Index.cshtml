@@ -2,14 +2,27 @@
 @model Rujoiu_Mihai_Lab2.Pages.Books.IndexModel
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Books Index";
 }
 
-<h1>Index</h1>
+<h1>Books Index</h1>
 
-<p>
+@* Filtrarea cu Dropdownlist pentru Autor *@
+<form method="get">
+    <div class="form-group">
+        <label for="BookAuthorID" class="control-label">Filtrează după Autor</label>
+        <select asp-for="BookAuthorID" class="form-control" asp-items="Model.AuthorNames">
+            <option value="">-- Toți Autorii --</option>
+        </select>
+        <input type="submit" value="Filtrează" class="btn btn-primary mt-2" />
+        <a asp-page="./Index" class="btn btn-secondary mt-2">Resetare Filtru</a>
+    </div>
+</form>
+
+<p class="mt-3">
     <a asp-page="Create">Create New</a>
 </p>
+
 <table class="table">
     <thead>
         <tr>
@@ -22,38 +35,61 @@
             <th>
                 @Html.DisplayNameFor(model => model.Book[0].Price)
             </th>
-            <th> 
+            <th>
                 @Html.DisplayNameFor(model => model.Book[0].PublishingDate)
             </th>
             <th>
-                @Html.DisplayNameFor(model => model.Book[0].Publisher.PublisherName)
+                @Html.DisplayNameFor(model => model.Book[0].Publisher)
             </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Book[0].BookCategories)
+            </th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
-@foreach (var item in Model.Book) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.Title)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Author)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Price)
-            </td>
+        @foreach (var item in Model.BookD.Books)
+        {
+            // LOGICA DE EVIDENȚIERE A RÂNDULUI SELECTAT
+            {
+                string selectedRow = "";
+                if (item.ID == Model.BookID)
+                {
+                    selectedRow = "table-success";
+                }
+            }
+            <tr class="selectedRow">
+                <td>
+                    @Html.DisplayFor(modelItem => item.Title)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Author.FullName)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Price)
+                </td>
                 <td>
                     @Html.DisplayFor(modelItem => item.PublishingDate)
                 </td>
                 <td>
                     @Html.DisplayFor(modelItem => item.Publisher.PublisherName)
                 </td>
-            <td>
-                <a asp-page="./Edit" asp-route-id="@item.ID">Edit</a> |
-                <a asp-page="./Details" asp-route-id="@item.ID">Details</a> |
-                <a asp-page="./Delete" asp-route-id="@item.ID">Delete</a>
-            </td>
-        </tr>
-}
+                
+                @* COLOANA PENTRU CATEGORII: Sintaxa este corectă. *@
+                <td>
+                    @foreach (var category in item.BookCategories)
+                    {
+                        @category.Category.ID @: @category.Category.CategoryName <br />
+                    }
+                </td>
+
+                <td>
+                    <a asp-page="./Index" asp-route-id="@item.ID">Select</a> |
+                    <a asp-page="./Edit" asp-route-id="@item.ID">Edit</a> |
+                    <a asp-page="./Details" asp-route-id="@item.ID">Details</a> |
+                    <a asp-page="./Delete" asp-route-id="@item.ID">Delete</a>
+                </td>
+            </tr>
+        }
     </tbody>
 </table>

@@ -1,12 +1,12 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Mvc; // Adaugă using pentru [BindProperty]
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Rendering; // Adaugă using pentru SelectList
+using Microsoft.EntityFrameworkCore;
+using Rujoiu_Mihai_Lab2.Models;
+using Rujoiu_Mihai_Lab2.Data;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
-using Rujoiu_Mihai_Lab2.Data;
-using Rujoiu_Mihai_Lab2.Models;
 
 namespace Rujoiu_Mihai_Lab2.Pages.Books
 {
@@ -19,13 +19,53 @@ namespace Rujoiu_Mihai_Lab2.Pages.Books
             _context = context;
         }
 
-        public IList<Book> Book { get;set; } = default!;
+        // Proprietățile necesare pentru datele afișate
+        public IList<Book> Book { get; set; }
+        public BookData BookD { get; set; }
+        public int BookID { get; set; }
+        public int CategoryID { get; set; }
 
-        public async Task OnGetAsync()
+        // NOILE PROPRIETĂȚI PENTRU FILTRAREA DUPĂ AUTOR (pentru a rezolva CS1061)
+        public SelectList AuthorNames { get; set; } // Lista de autori pentru Dropdown
+
+        [BindProperty(SupportsGet = true)]
+        public int? BookAuthorID { get; set; } // ID-ul autorului selectat
+
+        public async Task OnGetAsync(int? id, int? categoryID)
         {
-            Book = await _context.Book
-  .Include(b => b.Publisher)
-  .ToListAsync();
+            // 1. Încărcăm lista completă de autori pentru dropdown (pentru AuthorNames)
+            AuthorNames = new SelectList(_context.Author, "ID", "FullName");
+
+            BookD = new BookData();
+
+            var booksIQ = _context.Book
+                .Include(b => b.Publisher)
+                .Include(b => b.Author) // Includem Author
+                .Include(b => b.BookCategories)
+                    .ThenInclude(b => b.Category)
+                .AsNoTracking()
+                .OrderBy(b => b.Title)
+                .AsQueryable(); // Pornim ca IQueryable pentru a aplica Where
+
+            // Aplicăm filtrarea dacă un autor a fost selectat
+            if (BookAuthorID.HasValue)
+            {
+                booksIQ = booksIQ.Where(b => b.AuthorID == BookAuthorID.Value);
+            }
+
+            BookD.Books = await booksIQ.ToListAsync();
+            Book = BookD.Books.ToList();
+
+            // Logica de evidențiere a detaliilor
+            if (id != null)
+            {
+                BookID = id.Value;
+                Book book = BookD.Books
+                    .Where(i => i.ID == id.Value).Single();
+
+                BookD.Categories = book.BookCategories.Select(s => s.Category);
+            }
+            // Notă: Eroarea ENC0046 (await) dispare de obicei după o reconstruire a soluției.
         }
     }
 }
