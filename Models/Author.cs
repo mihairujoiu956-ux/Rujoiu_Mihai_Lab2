@@ -11,12 +11,16 @@ namespace Rujoiu_Mihai_Lab2.Models
         public string FirstName { get; set; }
         [Display(Name = "Name")]
         public string LastName { get; set; }
-        public ICollection<Book>? Books { get; set; }
-
-        [NotMapped]
+        [Display(Name = "Full Name")]
         public string FullName
         {
-            get { return $"{FirstName} {LastName}"; }
+            get
+            {
+                return FirstName + " " + LastName;
+            }
         }
+        public ICollection<Book>? Books { get; set; }
+
+      
     }
 }

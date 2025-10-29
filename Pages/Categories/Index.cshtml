@@ -22,9 +22,11 @@
     <tbody>
 @foreach (var item in Model.Category) {
         <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.CategoryName)
-            </td>
+                <td>
+                    <a asp-page="../Books/Index" asp-route-categoryID="@item.ID">
+                        @Html.DisplayFor(modelItem => item.CategoryName)
+                    </a>
+                </td>
             <td>
                 <a asp-page="./Edit" asp-route-id="@item.ID">Edit</a> |
                 <a asp-page="./Details" asp-route-id="@item.ID">Details</a> |

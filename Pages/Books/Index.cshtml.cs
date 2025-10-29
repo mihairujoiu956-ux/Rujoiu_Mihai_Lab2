@@ -1,71 +1,114 @@
-﻿using Microsoft.AspNetCore.Mvc; // Adaugă using pentru [BindProperty]
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Mvc.Rendering; // Adaugă using pentru SelectList
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using Rujoiu_Mihai_Lab2.Models;
 using Rujoiu_Mihai_Lab2.Data;
+using Rujoiu_Mihai_Lab2.Models;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System;
 
 namespace Rujoiu_Mihai_Lab2.Pages.Books
 {
     public class IndexModel : PageModel
     {
-        private readonly Rujoiu_Mihai_Lab2.Data.Rujoiu_Mihai_Lab2Context _context;
+        private readonly Rujoiu_Mihai_Lab2Context _context;
 
-        public IndexModel(Rujoiu_Mihai_Lab2.Data.Rujoiu_Mihai_Lab2Context context)
+        public IndexModel(Rujoiu_Mihai_Lab2Context context)
         {
             _context = context;
         }
 
-        // Proprietățile necesare pentru datele afișate
+        // Proprietăți pentru afișarea și filtrarea datelor
         public IList<Book> Book { get; set; }
         public BookData BookD { get; set; }
         public int BookID { get; set; }
         public int CategoryID { get; set; }
+        public string TitleSort { get; set; }
+        public string AuthorSort { get; set; }
+        public string CurrentFilter { get; set; }
 
-        // NOILE PROPRIETĂȚI PENTRU FILTRAREA DUPĂ AUTOR (pentru a rezolva CS1061)
-        public SelectList AuthorNames { get; set; } // Lista de autori pentru Dropdown
+        // Dropdown list pentru autori
+        public SelectList AuthorNames { get; set; }
 
         [BindProperty(SupportsGet = true)]
-        public int? BookAuthorID { get; set; } // ID-ul autorului selectat
+        public int? BookAuthorID { get; set; }
 
-        public async Task OnGetAsync(int? id, int? categoryID)
+        public async Task OnGetAsync(int? id, int? categoryID, string sortOrder, string
+            searchString)
         {
-            // 1. Încărcăm lista completă de autori pentru dropdown (pentru AuthorNames)
-            AuthorNames = new SelectList(_context.Author, "ID", "FullName");
-
             BookD = new BookData();
+            TitleSort = String.IsNullOrEmpty(sortOrder) ? "title_desc" : "";
+            AuthorSort = sortOrder == "author" ? "author_desc" : "";
 
-            var booksIQ = _context.Book
+            CurrentFilter = searchString;
+
+            // 1. Începem interogarea (IQueryable). NU chemăm ToListAsync() încă.
+            //    Interogarea se construiește în pași.
+            IQueryable<Book> booksQuery = _context.Book
+                .Include(b => b.Author) // Include Autorul (necesar pt. sortare/căutare)
                 .Include(b => b.Publisher)
-                .Include(b => b.Author) // Includem Author
                 .Include(b => b.BookCategories)
-                    .ThenInclude(b => b.Category)
-                .AsNoTracking()
-                .OrderBy(b => b.Title)
-                .AsQueryable(); // Pornim ca IQueryable pentru a aplica Where
+                .ThenInclude(b => b.Category)
+                .AsNoTracking();
 
-            // Aplicăm filtrarea dacă un autor a fost selectat
-            if (BookAuthorID.HasValue)
+            // 2. Aplicăm filtrul de CĂUTARE (dacă există)
+            if (!String.IsNullOrEmpty(searchString))
             {
-                booksIQ = booksIQ.Where(b => b.AuthorID == BookAuthorID.Value);
+                booksQuery = booksQuery.Where(s => s.Author.FirstName.Contains(searchString)
+                                                     || s.Author.LastName.Contains(searchString)
+                                                     || s.Title.Contains(searchString));
             }
 
-            BookD.Books = await booksIQ.ToListAsync();
-            Book = BookD.Books.ToList();
+            // 3. Aplicăm filtrul de CATEGORIE (dacă există)
+            //    *** ACESTA ESTE CODUL NOU PENTRU SARCINA TA ***
+            if (categoryID != null)
+            {
+                // Adăugăm un filtru 'Where' care selectează doar cărțile (x)
+                // care au 'Oricare' (Any) înregistrare în BookCategories (bc)
+                // al cărei CategoryID este egal cu cel primit.
+                booksQuery = booksQuery.Where(x => x.BookCategories.Any(bc => bc.CategoryID == categoryID));
+            }
 
-            // Logica de evidențiere a detaliilor
+            // 4. Aplicăm SORTAREA
+            switch (sortOrder)
+            {
+                case "title_desc":
+                    booksQuery = booksQuery.OrderByDescending(s => s.Title);
+                    break;
+                case "author_desc":
+                    booksQuery = booksQuery.OrderByDescending(s => s.Author.FullName);
+                    break;
+                case "author":
+                    booksQuery = booksQuery.OrderBy(s => s.Author.FullName);
+                    break;
+                default:
+                    booksQuery = booksQuery.OrderBy(s => s.Title);
+                    break;
+            }
+
+            // 5. Executăm interogarea finală (acum chemăm ToListAsync)
+            //    Baza de date va returna doar rezultatele filtrate și sortate.
+            BookD.Books = await booksQuery.ToListAsync();
+
+            // 6. Păstrăm logica ta existentă pentru selectarea unei singure cărți
+            //    (care folosește parametrul 'id' pentru a afișa categoriile acelei cărți)
             if (id != null)
             {
                 BookID = id.Value;
+                // Găsim cartea în lista deja filtrată și sortată
                 Book book = BookD.Books
-                    .Where(i => i.ID == id.Value).Single();
+                    .Where(i => i.ID == id.Value).SingleOrDefault(); // Folosim SingleOrDefault pentru siguranță
 
-                BookD.Categories = book.BookCategories.Select(s => s.Category);
+                if (book != null)
+                {
+                    BookD.Categories = book.BookCategories.Select(s => s.Category);
+                }
             }
-            // Notă: Eroarea ENC0046 (await) dispare de obicei după o reconstruire a soluției.
         }
+
+        // ------------- SE TERMINĂ METODA MODIFICATĂ -------------
     }
 }
+
