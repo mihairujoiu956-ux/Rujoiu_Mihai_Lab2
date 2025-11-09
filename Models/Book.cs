@@ -21,6 +21,7 @@ namespace Rujoiu_Mihai_Lab2.Models
         // NOU: Cheia străină și proprietatea de navigare pentru Author
         public int? AuthorID { get; set; } // Cheia străină
         public Author? Author { get; set; } // Proprietatea de navigare
+        public ICollection<Borrowing>? Borrowings { get; set; }
         public ICollection<BookCategory>? BookCategories { get; set; }
 
     }
