@@ -136,6 +136,7 @@ namespace Rujoiu_Mihai_Lab2.Areas.Identity.Pages.Account
                     Member.Email = Input.Email;
                     _context.Member.Add(Member);
                     await _context.SaveChangesAsync();
+                    var role = await _userManager.AddToRoleAsync(user, "User");
 
                     var userId = await _userManager.GetUserIdAsync(user);
                     var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
